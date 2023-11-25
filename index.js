@@ -30,6 +30,14 @@ async function run() {
 
     const userCollection = client.db('forumDb').collection('users');
 
+
+    // jwt related api
+    app.post('/jwt', async(req, res) =>{
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {expiresIn: '1h'});
+      res.send({token});
+    })
+    
     
     // user related api
     app.get('/users', async(req, res) =>{
