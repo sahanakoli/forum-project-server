@@ -46,6 +46,7 @@ async function run() {
         next();
       })
     }
+    
 
 
     // jwt related api
@@ -71,6 +72,20 @@ async function run() {
         }
         const result = await userCollection.insertOne(user);
         res.send(result);
+    });
+
+    app.get('/users/admin/:email',  verifyToken, async(req, res) =>{
+      const email = req.params.email;
+      if(email !== req.decoded.email){
+        return res.status(403).send({ message: 'forbidden access'})
+      }
+      const query = {email: email};
+      const user = await userCollection.findOne(query);
+      let admin = false;
+      if(user){
+        admin = user?.role === 'admin';
+      }
+      res.send({admin});
     });
 
     app.patch('/users/admin/:id',  async(req, res) =>{
