@@ -29,6 +29,7 @@ async function run() {
     // await client.connect();
 
     const userCollection = client.db('forumDb').collection('users');
+    const postCollection = client.db('forumDb').collection('posts');
 
 
     // middlewares
@@ -47,6 +48,17 @@ async function run() {
       })
     }
     
+    // use verify admin after verifyToken
+    const verifyAdmin = async(req, res, next) =>{
+      const email = req.decoded.email;
+    const query = {email: email};
+    const user = await userCollection.findOne(query);
+    const isAdmin = user?.role === 'admin';
+    if(!isAdmin){
+      return res.status(403).send({message: 'forbidden access'});
+    }
+    next();
+    }
 
 
     // jwt related api
@@ -58,21 +70,32 @@ async function run() {
     
     
     // user related api
-    app.get('/users', verifyToken, async(req, res) =>{
+    app.get('/users',  async(req, res) =>{
       const result = await userCollection.find().toArray();
       res.send(result);
     });
 
     app.post('/users', async(req, res) =>{
         const user = req.body;
+        
         const query = { email: user.email}
         const existingUser = await userCollection.findOne(query);
         if(existingUser){
         return res.send({ message: 'user already exists', insertedId: null})
         }
         const result = await userCollection.insertOne(user);
+        // console.log('user data', result)
+
         res.send(result);
     });
+
+    app.get('/users/:email', verifyToken, async(req, res) =>{
+      const email = req.params.email;
+      const query = { email: email}
+      const result = await userCollection.findOne(query).toArray();
+      console.log('user data', result)
+      res.send(result);
+    })
 
     app.get('/users/admin/:email',  verifyToken, async(req, res) =>{
       const email = req.params.email;
@@ -88,7 +111,7 @@ async function run() {
       res.send({admin});
     });
 
-    app.patch('/users/admin/:id',  async(req, res) =>{
+    app.patch('/users/admin/:id', verifyToken,   async(req, res) =>{
       const id = req.params.id;
       const filter = { _id: new ObjectId(id)};
       const updateDoc = {
@@ -99,6 +122,18 @@ async function run() {
       const result = await userCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
+
+    // post related api
+    app.post('/posts', async(req, res) =>{
+      const post = req.body;
+      const result = await postCollection.insertOne(post);
+      res.send(result);
+    });
+
+    // app.get('/posts', async(req, res) =>{
+    //   const result = await postCollection.find().toArray();
+    //   res.send(result);
+    // })
 
 
 
