@@ -31,6 +31,7 @@ async function run() {
     const userCollection = client.db('forumDb').collection('users');
     const postCollection = client.db('forumDb').collection('posts');
     const announcementCollection = client.db('forumDb').collection('announcement');
+    const commentCollection = client.db('forumDb').collection('comments');
 
 
     // middlewares
@@ -135,14 +136,20 @@ async function run() {
       const result = await postCollection.find().toArray();
       res.send(result);
     });
+    app.get('/posts/:id', async(req, res) =>{
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id)}
+      const result = await postCollection.findOne(query);
+      res.send(result);
+    });
 
-    // app.get('/posts/:id', async(req, res) =>{
-    //   const id = req.params.id;
-    //   const query = { _id: new ObjectId(id)}
-    //   const result = await postCollection.findOne(query).toArray();
+    // app.get('/posts/:email', async(req, res) =>{
+    //   const email = req.params.email;
+    //   const query = { email: email}
+    //   const result = await postCollection.find(query).toArray();
     //   console.log('post email',result);
     //   res.send(result);
-    // })
+    // });
 
     // announcement related api
     app.post('/announcement', async(req, res) =>{
@@ -153,6 +160,18 @@ async function run() {
 
     app.get('/announcement', async(req, res) =>{
       const result = await announcementCollection.find().toArray();
+      res.send(result);
+    });
+
+    // comment related api
+    app.post('/comments', async(req, res) =>{
+      const comment = req.body;
+      const result = await commentCollection.insertOne(comment);
+      res.send(result);
+    });
+
+    app.get('/comments', async(req, res) =>{
+      const result = await commentCollection.find().toArray();
       res.send(result);
     });
 
