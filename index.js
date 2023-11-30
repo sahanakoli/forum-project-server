@@ -4,6 +4,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const port = process.env.PORT || 5000;
 
 // middleware
@@ -32,6 +33,7 @@ async function run() {
     const postCollection = client.db('forumDb').collection('posts');
     const announcementCollection = client.db('forumDb').collection('announcement');
     const commentCollection = client.db('forumDb').collection('comments');
+    const tagCollection = client.db('forumDb').collection('tags');
 
 
     // middlewares
@@ -72,12 +74,12 @@ async function run() {
     
     
     // user related api
-    app.get('/users',  async(req, res) =>{
+    app.get('/users', verifyToken,  async(req, res) =>{
       const result = await userCollection.find().toArray();
       res.send(result);
     });
 
-    app.post('/users', async(req, res) =>{
+    app.post('/users', verifyToken, verifyAdmin, async(req, res) =>{
         const user = req.body;
         
         const query = { email: user.email}
@@ -113,7 +115,7 @@ async function run() {
       res.send({admin});
     });
 
-    app.patch('/users/admin/:id', verifyToken,   async(req, res) =>{
+    app.patch('/users/admin/:id', verifyToken, verifyAdmin,   async(req, res) =>{
       const id = req.params.id;
       const filter = { _id: new ObjectId(id)};
       const updateDoc = {
@@ -126,7 +128,7 @@ async function run() {
     });
 
     // post related api
-    app.post('/posts', async(req, res) =>{
+    app.post('/posts',verifyToken, async(req, res) =>{
       const post = req.body;
       const result = await postCollection.insertOne(post);
       res.send(result);
@@ -136,20 +138,34 @@ async function run() {
       const result = await postCollection.find().toArray();
       res.send(result);
     });
-    app.get('/posts/:id', async(req, res) =>{
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id)}
-      const result = await postCollection.findOne(query);
+    
+    // app.patch('/posts/:id', async (req, res) => {
+    //   const item = req.body;
+    //   const id = req.params.id;
+    //   const filter = { _id: new ObjectId(id) }
+    //   const updatedDoc = {
+    //     $set: {
+    //       upVote: posts.upVote,
+    //       downVote: posts.downVote
+    //     }
+    //   }
+
+    //   const result = await postCollectionCollection.updateOne(filter, updatedDoc)
+    //   res.send(result);
+    // })
+
+
+
+
+    app.get('/posts/:email', async(req, res) =>{
+      const email = req.params.email;
+      const query = { email: email}
+      const result = await postCollection.find(query).toArray();
+      console.log('post email',result);
       res.send(result);
     });
 
-    // app.get('/posts/:email', async(req, res) =>{
-    //   const email = req.params.email;
-    //   const query = { email: email}
-    //   const result = await postCollection.find(query).toArray();
-    //   console.log('post email',result);
-    //   res.send(result);
-    // });
+    
 
     // announcement related api
     app.post('/announcement', async(req, res) =>{
@@ -163,6 +179,23 @@ async function run() {
       res.send(result);
     });
 
+    // payment intent
+    app.post('/create-payment-intent', async(req, res) =>{
+      const {amount} = req.body;
+      const payments = parseInt(amount * 100);
+      console.log(payments, 'amount inside the intent')
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: payments,
+        currency: 'usd',
+        payment_method_types: ['card']
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      })
+    });
+
     // comment related api
     app.post('/comments', async(req, res) =>{
       const comment = req.body;
@@ -172,6 +205,13 @@ async function run() {
 
     app.get('/comments', async(req, res) =>{
       const result = await commentCollection.find().toArray();
+      res.send(result);
+    });
+
+    // tag related api
+    app.post('/tags', async(req, res) =>{
+      const tag = req.body;
+      const result = await tagCollection.insertOne(tag);
       res.send(result);
     });
 
